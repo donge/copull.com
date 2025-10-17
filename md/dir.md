@@ -12,7 +12,7 @@
 - [市场-网志设计图.png](市场-网志设计图.png)
 
 ### 需求
-- [需求-销售侧需求VS科来](doc.html?doc=需求-销售侧需求VS科来.md)
+- [需求-销售侧需求VS科来](doc.html?doc=需求-销售侧需求VS科来)
 
 ### 网页
 - [ppt.html](ppt.html)
