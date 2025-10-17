@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Markdown 幻灯片</title>
+  <!-- Reveal.js 核心样式与主题 -->
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@4/dist/reveal.css" />
+  <link id="theme" rel="stylesheet" href="https://unpkg.com/reveal.js@4/dist/theme/black.css" />
+  <!-- 代码高亮样式 -->
+  <link rel="stylesheet" href="https://unpkg.com/highlight.js@11.9.0/styles/github-dark.min.css" />
+  <style>
+    /* 全局背景与细微视觉效果 */
+    body { margin: 0; }
+    .reveal {
+      background: radial-gradient(1200px 600px at 10% 10%, #0f102a 0%, #1b1e42 50%, #0b0c22 100%);
+      font-size: 28px; /* 缩小整体字号 */
+    }
+    .reveal .slides section {
+      backdrop-filter: saturate(1.1) blur(1px);
+    }
+    /* 让背景图更柔和 */
+    .slide-background { opacity: .18; }
+    /* 标题与文本的对比增强 */
+    .reveal h1, .reveal h2, .reveal h3 {
+      letter-spacing: .02em;
+    }
+    /* 放大 Mermaid 图表并充分占满页面空间 */
+    .reveal .slides .mermaid {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: auto;
+    }
+    .reveal .slides .mermaid svg {
+      width: 100% !important;
+      height: auto !important;
+      max-height: 80vh;
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <!-- Slides 将由脚本按 Markdown 标题动态生成 -->
+    </div>
+  </div>
+
+  <!-- Reveal.js 与插件 -->
+  <script src="https://unpkg.com/reveal.js@4/dist/reveal.js"></script>
+  <script src="https://unpkg.com/reveal.js@4/plugin/highlight/highlight.js"></script>
+  <script src="https://unpkg.com/reveal.js@4/plugin/notes/notes.js"></script>
+  <!-- Mermaid 主库（参考 md.html 的用法） -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11.6.0/dist/mermaid.min.js"></script>
+  <!-- 与 md.html 对齐：引入 marked 与 highlight.js 主库 -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+
+    // 配置 marked，与 md.html 对齐
+    marked.setOptions({
+      highlight: function(code, lang) {
+        if (typeof hljs !== 'undefined') {
+          if (lang && hljs.getLanguage(lang)) {
+            return hljs.highlight(code, { language: lang }).value;
+          }
+          return hljs.highlightAuto(code).value;
+        }
+        return code; // 无 hljs 时原样返回，避免报错
+      },
+      breaks: true,
+      headerIds: true,
+      mangle: false
+    });
+
+    // 处理 Mermaid 代码块为可渲染的 div（与 md.html 相同）
+    function processMermaid(content) {
+      return content.replace(/```mermaid\n([\s\S]*?)```/g, function(match, p1) {
+        const cleanCode = p1.trim()
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&')
+          .replace(/\n\s*\n/g, '\n');
+        return `<div class="mermaid" data-mermaid="${encodeURIComponent(cleanCode)}">${cleanCode}</div>`;
+      });
+    }
+
+    // 与 md.html 对齐的点击查看 SVG
+    function setupMermaidClickHandlers() {
+      document.querySelectorAll('.mermaid svg').forEach(svg => {
+        svg.style.cursor = 'pointer';
+        svg.addEventListener('click', function() {
+          const svgData = new XMLSerializer().serializeToString(this);
+          const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+          const url = URL.createObjectURL(svgBlob);
+          window.open(url, '_blank');
+        });
+      });
+    }
+    // 读取查询参数：支持 file 与 doc（doc 自动补 .md）
+    // 另含：theme、transition、bg(背景图)
+    function qp(name){ return new URLSearchParams(location.search).get(name); }
+    const docParam = qp('doc');
+    let file = qp('file');
+    if (!file) {
+      file = docParam ? (docParam.endsWith('.md') ? docParam : `${docParam}.md`) : 'dir.md';
+    }
+    // 基于当前页面路径解析相对地址，避免指向外部域名
+    const currentPath = window.location.pathname;
+    const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+    const resolvedFileUrl = new URL(file, window.location.origin + basePath).toString();
+
+    
+
+    // 主题切换（示例：?theme=moon、night、beige、simple、serif、solarized、league）
+    const themeEl = document.getElementById('theme');
+    const theme = qp('theme');
+    if (theme) themeEl.href = `https://unpkg.com/reveal.js@4/dist/theme/${theme}.css`;
+
+    // 字体大小：支持通过 ?fs=26（单位 px）覆盖
+    const fs = qp('fs');
+    if (fs) {
+      const n = Number(fs);
+      if (!Number.isNaN(n) && n > 0) {
+        document.querySelector('.reveal').style.fontSize = `${n}px`;
+      }
+    }
+
+    // 背景图片（全局），示例：?bg=./bg.jpg
+    const bg = qp('bg');
+    if (bg) document.querySelector('.reveal').style.background = `url('${bg}') center/cover fixed`;
+
+    // 过渡效果（slide, fade, convex, concave, zoom）示例：?transition=zoom
+    const transition = qp('transition') || 'slide';
+
+    // Mermaid 字体大小：支持 ?mfs=32（单位 px）；默认跟随 fs 或 32
+    const mfsParam = qp('mfs');
+    let mermaidFontSize = 32;
+    if (mfsParam && !Number.isNaN(Number(mfsParam)) && Number(mfsParam) > 0) {
+      mermaidFontSize = Number(mfsParam);
+    } else if (fs && !Number.isNaN(Number(fs)) && Number(fs) > 0) {
+      mermaidFontSize = Number(fs);
+    }
+
+    // 初始化 Mermaid（参考 md.html 配置，增加 themeVariables 放大字号）
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      securityLevel: 'loose',
+      flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
+      sequence: { useMaxWidth: true, showSequenceNumbers: true },
+      er: { useMaxWidth: true },
+      themeVariables: {
+        fontSize: mermaidFontSize + 'px'
+      }
+    });
+
+    // 拉取 Markdown 并按 # / ## 生成水平/垂直幻灯片；每个 mermaid 图单独分页
+    async function buildSlidesFromMarkdown(path){
+      const res = await fetch(path);
+      const md = await res.text();
+
+      // 解析：# 为水平页，## 为垂直子页；其他内容跟随最近标题
+      const lines = md.split(/\r?\n/);
+      const groups = []; // { slides: [markdown] }
+      let currentGroup = null;
+      let currentSlide = [];
+      let inMermaid = false;
+      let mermaidLines = [];
+      let inTable = false;
+      let tableLines = [];
+      let inImage = false;
+      let imageLines = [];
+
+      function pushSlide(){
+        if (!currentGroup) currentGroup = { slides: [] };
+        const content = currentSlide.join('\n').trim();
+        if (content) currentGroup.slides.push(content);
+        currentSlide = [];
+      }
+
+      for (const line of lines){
+        // Mermaid 代码块开始
+        if (!inMermaid && /^```mermaid\s*$/.test(line)) {
+          inMermaid = true;
+          mermaidLines = [];
+          continue;
+        }
+        // Mermaid 代码块收集与结束
+        if (inMermaid) {
+          if (/^```\s*$/.test(line)) {
+            // 结束：每个图单独分页
+            const cleanCode = mermaidLines.join('\n').trim()
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/&amp;/g, '&')
+              .replace(/\n\s*\n/g, '\n');
+            if (currentSlide.length) pushSlide();
+            currentSlide = [
+              `<div class="mermaid" data-mermaid="${encodeURIComponent(cleanCode)}">${cleanCode}</div>`
+            ];
+            pushSlide();
+            inMermaid = false;
+            mermaidLines = [];
+          } else {
+            mermaidLines.push(line);
+          }
+          continue;
+        }
+
+        // 表格块处理：以管道开头的连续行作为一个表格，单独分页
+        if (inTable) {
+          if (/^\s*\|.*\|\s*$/.test(line)) {
+            tableLines.push(line);
+            continue;
+          } else {
+            // 结束表格，输出为独立页
+            if (currentSlide.length) pushSlide();
+            currentSlide = [ tableLines.join('\n') ];
+            pushSlide();
+            inTable = false;
+            tableLines = [];
+            // 不 continue，当前行交由后续逻辑处理
+          }
+        } else if (/^\s*\|.*\|\s*$/.test(line)) {
+          // 表格开始
+          inTable = true;
+          tableLines = [line];
+          continue;
+        }
+
+        // 图片块处理：Markdown 图片或 HTML <img> 连续行作为一个图片块，单独分页
+        if (inImage) {
+          if (/^\s*!\[.*?\]\(.*?\)\s*$/.test(line) || /^\s*<img\b/.test(line)) {
+            imageLines.push(line);
+            continue;
+          } else {
+            // 结束图片块，输出为独立页
+            if (currentSlide.length) pushSlide();
+            currentSlide = [ imageLines.join('\n') ];
+            pushSlide();
+            inImage = false;
+            imageLines = [];
+            // 不 continue，当前行交由后续逻辑处理
+          }
+        } else if (/^\s*!\[.*?\]\(.*?\)\s*$/.test(line) || /^\s*<img\b/.test(line)) {
+          // 图片块开始
+          inImage = true;
+          imageLines = [line];
+          continue;
+        }
+        if (/^#\s+/.test(line)){ // 新的水平页（章节）
+          if (currentSlide.length) pushSlide();
+          if (currentGroup) groups.push(currentGroup);
+          currentGroup = { slides: [] };
+          currentSlide = [line];
+        } else if (/^##\s+/.test(line)){ // 二级标题：标题与其内容同页展示
+          if (!currentGroup) currentGroup = { slides: [] };
+          // 结束上一页内容
+          if (currentSlide.length) pushSlide();
+          // 开启一个包含标题与后续内容的同页
+          currentSlide = [line];
+        } else if (/^###\s+/.test(line)) { // 三级标题：标题与其内容同页展示
+          if (!currentGroup) currentGroup = { slides: [] };
+          if (currentSlide.length) pushSlide();
+          currentSlide = [line];
+        } else {
+          currentSlide.push(line);
+        }
+      }
+      // 若以表格结束文件，需收尾输出为独立页
+      if (inTable && tableLines.length) {
+        if (currentSlide.length) pushSlide();
+        currentSlide = [ tableLines.join('\n') ];
+        pushSlide();
+        inTable = false;
+        tableLines = [];
+      }
+      // 若以图片结束文件，需收尾输出为独立页
+      if (inImage && imageLines.length) {
+        if (currentSlide.length) pushSlide();
+        currentSlide = [ imageLines.join('\n') ];
+        pushSlide();
+        inImage = false;
+        imageLines = [];
+      }
+      if (currentSlide.length) pushSlide();
+      if (currentGroup) groups.push(currentGroup);
+
+      // 构建 DOM：水平 section 包含垂直 section
+      const container = document.querySelector('.slides');
+      container.innerHTML = '';
+      groups.forEach(group => {
+        const hSection = document.createElement('section');
+        if (group.slides.length <= 1){
+          const s = document.createElement('section');
+          const raw = group.slides[0] || '';
+          const processed = processMermaid(raw);
+          const html = /^<div class="mermaid"/.test(processed) ? processed : marked.parse(processed);
+          s.innerHTML = html;
+          hSection.appendChild(s);
+        } else {
+          group.slides.forEach(mdPart => {
+            const vSection = document.createElement('section');
+            const processed = processMermaid(mdPart);
+            const html = /^<div class="mermaid"/.test(processed) ? processed : marked.parse(processed);
+            vSection.innerHTML = html;
+            hSection.appendChild(vSection);
+          });
+        }
+        container.appendChild(hSection);
+      });
+    }
+
+    // 先构建，再初始化 Reveal 以确保键盘翻页与插件正常工作
+    (async () => {
+      await buildSlidesFromMarkdown(resolvedFileUrl);
+
+      // 构建插件列表（不再使用 Markdown 插件，避免与 marked 渲染重复）
+      const plugins = [ RevealHighlight, RevealNotes ];
+
+      Reveal.initialize({
+        hash: true,
+        slideNumber: true,
+        controls: true,
+        progress: true,
+        center: true,
+        history: true,
+        transition,
+        backgroundTransition: 'fade',
+        plugins,
+      });
+
+      // 在 Reveal 完成渲染后再初始化 Mermaid，避免时序问题
+      Reveal.on('ready', () => {
+        mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+        setupMermaidClickHandlers();
+      });
+    })();
+
+    // 提示：在 Markdown 中可使用如下方式增强效果：
+    // 1) 碎片（逐条出现）：
+    //    - 第一条 <!-- .element: class="fragment" -->
+    //    - 第二条 <!-- .element: class="fragment" data-fragment-index="2" -->
+    // 2) 背景（单页）：在标题后添加
+    //    <!-- .slide: data-background="#112233" data-background-image="./bg.jpg" data-background-opacity="0.25" -->
+    // 3) 备注（演讲者笔记）：在 md 中写 Notes: 开头的段落
+  </script>
+</body>
+</html>

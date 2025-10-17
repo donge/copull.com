@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown 文档查看器</title>
+    <!-- 引入 Markdown 渲染库 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- 引入 Mermaid 图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.6.0/dist/mermaid.min.js"></script>
+    <!-- 引入代码高亮 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/highlight.min.js"></script>
+    <!-- 引入 Viewer.js -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/viewerjs@1.11.6/dist/viewer.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/viewerjs@1.11.6/dist/viewer.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #24292e;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 45px;
+        }
+        @media (max-width: 767px) {
+            .markdown-body {
+                padding: 15px;
+            }
+        }
+        .mermaid {
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+            height: auto;
+        }
+        .mermaid:hover {
+            transform: scale(1.01);
+        }
+        /* Viewer.js 自定义样式 */
+        .viewer-container {
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+        .viewer-toolbar > ul > .viewer-zoom-in,
+        .viewer-toolbar > ul > .viewer-zoom-out,
+        .viewer-toolbar > ul > .viewer-one-to-one,
+        .viewer-toolbar > ul > .viewer-reset,
+        .viewer-toolbar > ul > .viewer-rotate-left,
+        .viewer-toolbar > ul > .viewer-rotate-right {
+            display: inline-block !important;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            line-height: 1.25;
+        }
+        h1 {
+            font-size: 2em;
+            border-bottom: 1px solid #eaecef;
+            padding-bottom: 0.3em;
+        }
+        h2 {
+            font-size: 1.5em;
+            border-bottom: 1px solid #eaecef;
+            padding-bottom: 0.3em;
+        }
+        code {
+            background-color: rgba(27,31,35,0.05);
+            border-radius: 3px;
+            font-size: 85%;
+            margin: 0;
+            padding: 0.2em 0.4em;
+        }
+        pre {
+            background-color: #f6f8fa;
+            border-radius: 3px;
+            font-size: 85%;
+            line-height: 1.45;
+            overflow: auto;
+            padding: 16px;
+        }
+        pre code {
+            background-color: transparent;
+            border: 0;
+            display: inline;
+            line-height: inherit;
+            margin: 0;
+            overflow: visible;
+            padding: 0;
+            word-wrap: normal;
+        }
+        blockquote {
+            margin: 0;
+            padding: 0 1em;
+            color: #6a737d;
+            border-left: 0.25em solid #dfe2e5;
+        }
+        table {
+            border-spacing: 0;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+        table th, table td {
+            padding: 6px 13px;
+            border: 1px solid #dfe2e5;
+        }
+        table tr {
+            background-color: #fff;
+            border-top: 1px solid #c6cbd1;
+        }
+        table tr:nth-child(2n) {
+            background-color: #f6f8fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="markdown-body" id="content"></div>
+
+    <script>
+        // 初始化 Mermaid
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            },
+            sequence: {
+                useMaxWidth: true,
+                showSequenceNumbers: true
+            },
+            er: {
+                useMaxWidth: true
+            }
+        });
+
+        // 配置 marked
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            // 确保为标题生成可预测的 id（用于锚点跳转）
+            headerIds: true,
+            mangle: false
+        });
+
+        // 处理 Mermaid 图表
+        function processMermaid(content) {
+            return content.replace(/```mermaid\n([\s\S]*?)```/g, function(match, p1) {
+                const cleanCode = p1.trim()
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                    .replace(/&amp;/g, '&')
+                    .replace(/\n\s*\n/g, '\n');
+                return `<div class="mermaid" data-mermaid="${encodeURIComponent(cleanCode)}">${cleanCode}</div>`;
+            });
+        }
+
+        // 设置点击事件，在新标签页中打开图片
+        function setupMermaidClickHandlers() {
+            document.querySelectorAll('.mermaid svg').forEach(svg => {
+                svg.style.cursor = 'pointer';
+                svg.addEventListener('click', function() {
+                    const svgData = new XMLSerializer().serializeToString(this);
+                    const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+                    const url = URL.createObjectURL(svgBlob);
+                    window.open(url, '_blank');
+                });
+            });
+        }
+
+        // 获取URL参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const docParam = urlParams.get('doc');
+        
+        // 获取当前路径并构建文件路径
+        const currentPath = window.location.pathname;
+        const basePath = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+        
+        // 根据参数决定加载哪个文件，默认为dir.md
+        const fileName = docParam ? docParam + '.md' : 'dir.md';
+        
+        // 处理 URL 哈希并滚动到对应元素
+        function scrollToHash() {
+            const hash = window.location.hash;
+            if (!hash) return;
+            // 解码并去掉开头的 '#'
+            const id = decodeURIComponent(hash.substring(1));
+            if (!id) return;
+            // 支持 id 或 name 两种选择器
+            const target = document.getElementById(id) || document.querySelector(`[name="${CSS.escape(id)}"]`);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        // 将标题文本转为稳定的锚点 id（支持中文与括号内容）
+        function slugify(text) {
+            if (!text) return '';
+            // 统一大小写与空白
+            let s = String(text).trim().toLowerCase();
+            // 去除前后标点（如末尾冒号）
+            s = s.replace(/[\s:]+$/g, '');
+            // 去除 HTML 标签
+            s = s.replace(/<[^>]+>/g, '');
+            // 将全角括号替换为半角，保留括号内部字母数字
+            s = s.replace(/[（]/g, '(').replace(/[）]/g, ')');
+            // 移除除字母、数字、中文、空格、连字符、括号外的字符
+            s = s.replace(/[^a-z0-9\u4e00-\u9fa5\-\s()]/g, '');
+            // 移除括号但保留括号内字符
+            s = s.replace(/[()]/g, '');
+            // 将连续空白替换为单个连字符
+            s = s.replace(/\s+/g, '-');
+            // 将多重连字符压缩为一个
+            s = s.replace(/-+/g, '-');
+            // 去除首尾连字符
+            s = s.replace(/^-/g, '').replace(/-$/g, '');
+            return s;
+        }
+
+        // 为所有标题确保生成 id，避免渲染器未设置导致无法跳转
+        function ensureHeadingAnchors(container) {
+            const headings = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
+            const used = new Set();
+            headings.forEach(h => {
+                const text = h.textContent || h.innerText || '';
+                let id = slugify(text);
+                if (!id) return;
+                let unique = id;
+                let i = 1;
+                while (used.has(unique) || document.getElementById(unique)) {
+                    unique = `${id}-${i++}`;
+                }
+                h.id = unique;
+                used.add(unique);
+            });
+        }
+
+        // 加载并渲染 Markdown 内容
+        fetch(basePath + fileName)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.text();
+            })
+            .then(text => {
+                // 处理 Mermaid 图表
+                const processedContent = processMermaid(text);
+                // 渲染 Markdown
+                const contentEl = document.getElementById('content');
+                contentEl.innerHTML = marked.parse(processedContent);
+                // 确保所有标题具备可跳转的 id
+                ensureHeadingAnchors(contentEl);
+
+                // 动态更新页面标题
+                const h1Element = document.querySelector('h1');
+                if (h1Element) {
+                    document.title = h1Element.textContent + ' - Markdown 文档查看器';
+                }
+
+                // 重新初始化 Mermaid
+                mermaid.init(undefined, document.querySelectorAll('.mermaid')).then(() => {
+                    // 设置点击事件
+                    setupMermaidClickHandlers();
+                    // 内容渲染完成后，根据哈希滚动到对应标题
+                    scrollToHash();
+                });
+
+                // 监听哈希变化，实现目录锚点跳转
+                window.addEventListener('hashchange', () => {
+                    // 重新确认标题 id（应对动态内容），再滚动
+                    ensureHeadingAnchors(document.getElementById('content'));
+                    setTimeout(scrollToHash, 0);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading markdown file:', error);
+                document.getElementById('content').innerHTML = `<div style="color: red; padding: 20px;">
+                    <h2>加载文件失败</h2>
+                    <p>错误信息: ${error.message}</p>
+                    <p>请确保 ${fileName} 文件存在于正确的位置。</p>
+                </div>`;
+            });
+    </script>
+</body>
+</html>
