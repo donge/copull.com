@@ -53,7 +53,16 @@
             letter-spacing: 4px;
             margin-bottom: 20px;
             opacity: 0;
-            animation: titleEntrance 1.2s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+            /* 渐变文字 */
+            background: linear-gradient(90deg, #ffffff 0%, #e6e9ee 35%, #b7c0c9 70%, #ffffff 100%);
+            background-size: 300% 100%;
+            color: transparent; /* 强制文本颜色透明，确保剪裁生效 */
+            display: inline-block; /* 提升兼容性 */
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            /* 入场 + 渐变流动 */
+            animation: titleEntrance 1.2s cubic-bezier(0.25, 0.1, 0.25, 1) forwards, textSheen 10s linear infinite;
         }
 
         .subtitle {
@@ -61,11 +70,20 @@
             font-weight: 300;
             margin-bottom: 40px;
             opacity: 0;
-            animation: fadeIn 1.5s 0.5s forwards;
+            /* 渐变文字（更柔和） */
+            background: linear-gradient(90deg, #ffffff 0%, #eceff3 40%, #c5ccd4 100%);
+            background-size: 300% 100%;
+            color: transparent; /* 强制文本颜色透明，确保剪裁生效 */
+            display: inline-block; /* 提升兼容性 */
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            /* 入场 + 渐变流动（略慢） */
+            animation: fadeIn 1.5s 0.5s forwards, textSheen 14s linear infinite;
         }
 
         .slogan, .expect {
-            font-size: 0.8rem;
+            font-size: 1.0rem;
             font-weight: 300;
             margin: 15px 0;
             opacity: 0;
@@ -98,6 +116,12 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* 渐变文字缓慢流动 */
+        @keyframes textSheen {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
         .glow {
             position: absolute;
             top: 0;
@@ -113,13 +137,12 @@
         }
 
         @media (max-width: 768px) {
-            .title { font-size: 3rem; }
-            .subtitle { font-size: 1.4rem; }
-            .slogan, .expect { font-size: 1.1rem; }
+            .title { font-size: 4.5rem; }
+            .subtitle { font-size: 1.8rem; }
+            .slogan, .expect { font-size: 1.0rem; }
         }
-
         @media (max-width: 480px) {
-            .title { font-size: 2.2rem; }
+            .title { font-size: 3.2rem; }
             .subtitle { font-size: 1.2rem; }
         }
     </style>
@@ -127,22 +150,95 @@
 <body>
     <div class="container">
         <div class="content">
-            <h1 class="title">靠谱公司</h1>
-            <h2 class="subtitle">软件竞争力技术供应商</h2>
-            <p class="slogan">持续交付稳定，智能，安全，高性能的软件工程优化方案。</p>
-            <p class="expect">期待成为您系统中最有竞争力的关键组件。</p>
+            <h1 class="title">靠谱</h1>
+            <h2 class="subtitle">软件竞争力提供商</h2>
+            <p class="slogan">为关键技术提供先进，智能，安全，高性能的工程方案</p>
         </div>
         <div class="glow"></div>
     </div>
 
     <script>
-        // 鼠标互动效果
+        // 统一设置光影位置
+        function setGlow(xPercent, yPercent) {
+            document.documentElement.style.setProperty('--mouse-x', `${xPercent}%`);
+            document.documentElement.style.setProperty('--mouse-y', `${yPercent}%`);
+        }
+
+        // 随机游走状态
+        let lastMoveTime = Date.now();
+        const idleThreshold = 2000; // 鼠标不动超过 2s 开始自动移动
+        let isIdle = false;
+
+        // 自动移动的当前位置与速度（单位：百分比/帧）
+        let autoX = 50;
+        let autoY = 50;
+        let vx = 0;
+        let vy = 0;
+
+        // 阻尼与随机扰动强度
+        const damping = 0.98;
+        const jitter = 0.01;
+        const speedScale = 20; // 将速度映射到每帧移动量
+
+        // 边界限制（留一点边距避免光影贴边）
+        const minP = 5;
+        const maxP = 95;
+
+        // 鼠标互动：跟随并退出空闲
         document.addEventListener('mousemove', (e) => {
             const x = (e.clientX / window.innerWidth) * 100;
             const y = (e.clientY / window.innerHeight) * 100;
-            document.documentElement.style.setProperty('--mouse-x', `${x}%`);
-            document.documentElement.style.setProperty('--mouse-y', `${y}%`);
+            setGlow(x, y);
+
+            // 将自动运动的起点同步为当前鼠标点
+            autoX = x;
+            autoY = y;
+
+            lastMoveTime = Date.now();
+            isIdle = false;
         });
+
+        // 自动随机移动（随机游走 + 阻尼 + 边界反弹）
+        function tick() {
+            const now = Date.now();
+            if (now - lastMoveTime > idleThreshold) {
+                isIdle = true;
+            }
+
+            if (isIdle) {
+                // 轻微随机加速度
+                vx += (Math.random() - 0.5) * jitter;
+                vy += (Math.random() - 0.5) * jitter;
+
+                // 阻尼
+                vx *= damping;
+                vy *= damping;
+
+                // 位置更新（按比例控制速度）
+                autoX += vx * speedScale;
+                autoY += vy * speedScale;
+
+                // 边界检测与反弹
+                if (autoX < minP) {
+                    autoX = minP;
+                    vx = Math.abs(vx);
+                } else if (autoX > maxP) {
+                    autoX = maxP;
+                    vx = -Math.abs(vx);
+                }
+                if (autoY < minP) {
+                    autoY = minP;
+                    vy = Math.abs(vy);
+                } else if (autoY > maxP) {
+                    autoY = maxP;
+                    vy = -Math.abs(vy);
+                }
+
+                setGlow(autoX, autoY);
+            }
+
+            requestAnimationFrame(tick);
+        }
 
         // 页面加载动画
         window.addEventListener('load', () => {
@@ -150,11 +246,15 @@
             elements.forEach(el => {
                 el.style.animationPlayState = 'running';
             });
+
+            // 初始化位置并启动自动循环
+            setGlow(autoX, autoY);
+            requestAnimationFrame(tick);
         });
 
-        // 响应窗口大小变化
+        // 响应窗口大小变化（当前无需处理百分比逻辑）
         window.addEventListener('resize', () => {
-            // 可以在这里添加响应式调整逻辑
+            // 可在此添加响应式调整逻辑
         });
     </script>
 </body>
