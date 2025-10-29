@@ -21,6 +21,93 @@
             overflow: hidden;
         }
 
+        /* 导航菜单样式 */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 20px 0;
+            background-color: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+        }
+
+        .nav-menu {
+            display: flex;
+            list-style: none;
+        }
+
+        .nav-item {
+            position: relative;
+            margin: 0 20px;
+        }
+
+        .nav-link {
+            display: block;
+            color: white;
+            text-decoration: none;
+            padding: 10px 15px;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* 子菜单样式 */
+        .submenu {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(26, 26, 46, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            list-style: none;
+            padding: 10px 0;
+            min-width: 120px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-item:hover .submenu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(5px);
+        }
+
+        .submenu li {
+            width: 100%;
+        }
+
+        .submenu-link {
+            display: block;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .submenu-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+
         .container {
             width: 100vw;
             height: 100vh;
@@ -148,6 +235,33 @@
     </style>
 </head>
 <body>
+    <!-- 导航菜单 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <ul class="nav-menu">
+                <!-- 网络菜单 -->
+                <li class="nav-item">
+                    <a href="#" class="nav-link">网络</a>
+                    <ul class="submenu">
+                        <li><a href="./wangzhi/" class="submenu-link">网志</a></li>
+                        <li><a href="./wangce/" class="submenu-link">网测</a></li>
+                    </ul>
+                </li>
+                <!-- 系统菜单 -->
+                <li class="nav-item">
+                    <a href="#" class="nav-link">系统</a>
+                    <ul class="submenu">
+                        <li><a href="./keguan/" class="submenu-link">可观</a></li>
+                    </ul>
+                </li>
+                <!-- 高性能菜单 -->
+                <li class="nav-item">
+                    <a href="#" class="nav-link">高性能</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
     <div class="container">
         <div class="content">
             <h1 class="title">靠谱</h1>
